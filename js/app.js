@@ -1,3 +1,47 @@
+const ImageStore = {
+  _db: null,
+  async _getDB() {
+    if (this._db) return this._db;
+    return new Promise((res, rej) => {
+      const r = indexedDB.open('ForumPasteImages', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('images', { keyPath: 'id' });
+      r.onsuccess = () => { this._db = r.result; res(this._db) };
+      r.onerror = () => rej(r.error);
+    });
+  },
+  async save(id, dataUrl) {
+    const db = await this._getDB();
+    return new Promise((res, rej) => {
+      const tx = db.transaction('images', 'readwrite');
+      tx.objectStore('images').put({ id, dataUrl, created: Date.now() });
+      tx.oncomplete = res;
+      tx.onerror = () => rej(tx.error);
+    });
+  },
+  async get(id) {
+    const db = await this._getDB();
+    return new Promise((res, rej) => {
+      const tx = db.transaction('images', 'readonly');
+      const r = tx.objectStore('images').get(id);
+      r.onsuccess = () => res(r.result?.dataUrl);
+      r.onerror = () => rej(r.error);
+    });
+  },
+  async cleanup() {
+    const db = await this._getDB();
+    const tx = db.transaction('images', 'readwrite');
+    const store = tx.objectStore('images');
+    const r = store.openCursor();
+    r.onsuccess = (e) => {
+      const c = e.target.result;
+      if (c) {
+        if (Date.now() - c.value.created > 3600000) store.delete(c.key);
+        c.continue();
+      }
+    };
+  },
+};
+
 const App = {
   _page: 1,
 
@@ -16,6 +60,8 @@ const App = {
 
   async init() {
     try {
+      ImageStore.cleanup();
+
       Router.on('/', (p) => this.home(p));
       Router.on('/inn/list', (p) => this.innList(p));
       Router.on('/inn/:iid', (p) => this.innView(p));
@@ -287,7 +333,7 @@ const App = {
               <button type="button" class="md-btn" data-tag="codeblock" title="代码块">```</button>
               <button type="button" class="md-btn" data-tag="list" title="列表">•</button>
               <button type="button" class="md-btn" data-tag="quote" title="引用">&gt;</button>
-              <span class="md-hint">拖拽文件到 GitHub 页面即可上传</span>
+              <span class="md-hint">📋 粘贴图片自动存储 · 全功能编辑在 GitHub</span>
             </div>
             <textarea id="post-content" class="form-input" required maxlength="65000"
               placeholder="写下你的内容..." style="min-height:220px"></textarea>
@@ -300,6 +346,30 @@ const App = {
       document.getElementById('md-toolbar')?.addEventListener('click', (e) => {
         const btn = e.target.closest('.md-btn');
         if (btn) this._insertMd(btn.dataset.tag);
+      });
+
+      const ta = document.getElementById('post-content');
+      ta.addEventListener('paste', (e) => {
+        const items = e.clipboardData?.items;
+        for (const item of items) {
+          if (item.type.startsWith('image/')) {
+            e.preventDefault();
+            const file = item.getAsFile();
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+              const dataUrl = ev.target.result;
+              const id = 'paste_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+              ImageStore.save(id, dataUrl).catch(() => {});
+              const imgMd = `![${file.name || 'image'}](${dataUrl})`;
+              const start = ta.selectionStart;
+              const end = ta.selectionEnd;
+              ta.value = ta.value.slice(0, start) + imgMd + ta.value.slice(end);
+              ta.selectionStart = ta.selectionEnd = start + imgMd.length;
+              ta.dispatchEvent(new Event('input'));
+            };
+            reader.readAsDataURL(file);
+          }
+        }
       });
 
       document.getElementById('post-form').addEventListener('submit', (e) => {
