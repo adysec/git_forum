@@ -4,7 +4,6 @@ const App = {
   async init() {
     Auth.init();
     this._renderHeader();
-    this._setupAuthModal();
 
     await API.ensureInitialLabels();
 
@@ -40,23 +39,8 @@ const App = {
         authArea.appendChild(Components.btn('退出', 'btn-sm', () => Auth.logout()));
     } else {
       authArea.innerHTML = '';
-      authArea.appendChild(Components.btn('GitHub 登录', 'btn-sm btn-primary', () => Auth.login().then(() => { this._renderHeader(); Router.navigate('/') })));
+      authArea.appendChild(Components.btn('GitHub 登录', 'btn-sm btn-primary', () => Auth.login()));
     }
-  },
-
-  _setupAuthModal() {
-    if (document.getElementById('auth-modal')) return;
-    const modal = Components.e('div', { id: 'auth-modal', className: 'modal-overlay' },
-      Components.e('div', { className: 'modal' },
-        Components.e('h2', {}, 'GitHub 身份验证'),
-        Components.e('p', {}, '在 GitHub 上输入以下代码完成登录：'),
-        Components.e('div', { id: 'auth-code', className: 'code' }, '------'),
-        Components.e('p', { id: 'auth-text' }, '或在浏览器打开：'),
-        Components.e('a', { id: 'auth-uri', href: '#', target: '_blank' }, 'github.com/login/device'),
-        Components.e('p', { style: 'margin-top:16px;font-size:12px;color:var(--text-muted)' }, '等待验证中...'),
-      ),
-    );
-    document.body.appendChild(modal);
   },
 
   _setContent(html) {
