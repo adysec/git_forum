@@ -200,6 +200,49 @@ const App = {
     }
   },
 
+  _insertMd(tag) {
+    const ta = document.getElementById('post-content');
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const text = ta.value;
+    const sel = text.slice(start, end);
+
+    const inserts = {
+      bold: ['**', '**'],
+      italic: ['*', '*'],
+      heading: ['## ', ''],
+      link: ['[', '](url)'],
+      image: ['', ''],
+      code: ['`', '`'],
+      codeblock: ['```\n', '\n```'],
+      list: ['- ', ''],
+      quote: ['> ', ''],
+    };
+
+    const [pre, post] = inserts[tag] || ['', ''];
+    const placeholder = tag === 'link' ? '链接文字' : tag === 'image' ? '图片描述' : '';
+
+    if (tag === 'image') {
+      const url = prompt('输入图片链接（或提交后在 GitHub 拖拽上传）：', 'https://');
+      if (!url) return;
+      const imgMd = `![${sel || '图片'}](${url})`;
+      ta.value = text.slice(0, start) + imgMd + text.slice(end);
+      ta.selectionStart = ta.selectionEnd = start + imgMd.length;
+      ta.focus();
+      return;
+    }
+
+    const inserted = pre + (sel || placeholder) + post;
+    ta.value = text.slice(0, start) + inserted + text.slice(end);
+    const cursor = tag === 'link' ? start + pre.length + placeholder.length
+      : tag === 'codeblock' || tag === 'quote' || tag === 'list' || tag === 'heading'
+        ? start + pre.length + (sel ? sel.length : 0)
+        : start + inserted.length;
+    ta.selectionStart = ta.selectionEnd = cursor;
+    ta.focus();
+  },
+
   async postNew(params) {
     this._setContent(Components.loading().outerHTML);
     try {
@@ -214,7 +257,7 @@ const App = {
       const html = `
         <h1 style="font-size:20px;font-weight:700;margin-bottom:20px">发新帖</h1>
         <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">
-          填写完成后将跳转到 GitHub 提交。
+          填写完成后将跳转到 GitHub 提交，可在 GitHub 页面拖拽上传图片和文件。
         </p>
         <form id="post-form">
           <div class="form-group">
@@ -234,13 +277,30 @@ const App = {
           </div>
           <div class="form-group">
             <label>内容（支持 Markdown）</label>
+            <div class="md-toolbar" id="md-toolbar">
+              <button type="button" class="md-btn" data-tag="bold" title="加粗"><b>B</b></button>
+              <button type="button" class="md-btn" data-tag="italic" title="斜体"><i>I</i></button>
+              <button type="button" class="md-btn" data-tag="heading" title="标题">H</button>
+              <button type="button" class="md-btn" data-tag="link" title="链接">🔗</button>
+              <button type="button" class="md-btn" data-tag="image" title="图片">🖼</button>
+              <button type="button" class="md-btn" data-tag="code" title="代码">&lt;/&gt;</button>
+              <button type="button" class="md-btn" data-tag="codeblock" title="代码块">```</button>
+              <button type="button" class="md-btn" data-tag="list" title="列表">•</button>
+              <button type="button" class="md-btn" data-tag="quote" title="引用">&gt;</button>
+              <span class="md-hint">拖拽文件到 GitHub 页面即可上传</span>
+            </div>
             <textarea id="post-content" class="form-input" required maxlength="65000"
-              placeholder="写下你的内容..." style="min-height:200px"></textarea>
+              placeholder="写下你的内容..." style="min-height:220px"></textarea>
           </div>
           <button type="submit" class="btn btn-primary">提交到 GitHub →</button>
         </form>
       `;
       this._setContent(html);
+
+      document.getElementById('md-toolbar')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.md-btn');
+        if (btn) this._insertMd(btn.dataset.tag);
+      });
 
       document.getElementById('post-form').addEventListener('submit', (e) => {
         e.preventDefault();

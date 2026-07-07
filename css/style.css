@@ -184,6 +184,41 @@ main {
   border-radius: var(--radius);
   font-size: 14px;
 }
+/* Markdown toolbar */
+.md-toolbar {
+  display: flex;
+  gap: 2px;
+  padding: 6px 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.md-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s, color 0.15s;
+}
+.md-btn:hover { background: var(--bg-tertiary); color: var(--text); }
+.md-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: auto;
+  white-space: nowrap;
+}
+#post-content { border-radius: 0 0 var(--radius) var(--radius); }
+
 /* Forms */
 .form-group { margin-bottom: 16px; }
 .form-group label {
