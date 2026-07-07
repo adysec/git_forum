@@ -11,16 +11,21 @@ const App = {
   },
 
   async init() {
-    Router.on('/', (p) => this.home(p));
-    Router.on('/inn/list', (p) => this.innList(p));
-    Router.on('/inn/:iid', (p) => this.innView(p));
-    Router.on('/post/new', (p) => this.postNew(p));
-    Router.on('/post/:iid/:pid', (p) => this.postView(p));
-    Router.on('/solo/user/:uid', (p) => this.soloList(p));
-    Router.on('/user/:login', (p) => this.userView(p));
-    Router.on('/search', (p) => this.search(p));
+    try {
+      Router.on('/', (p) => this.home(p));
+      Router.on('/inn/list', (p) => this.innList(p));
+      Router.on('/inn/:iid', (p) => this.innView(p));
+      Router.on('/post/new', (p) => this.postNew(p));
+      Router.on('/post/:iid/:pid', (p) => this.postView(p));
+      Router.on('/solo/user/:uid', (p) => this.soloList(p));
+      Router.on('/user/:login', (p) => this.userView(p));
+      Router.on('/search', (p) => this.search(p));
 
-    Router.init();
+      Router.init();
+    } catch (e) {
+      document.getElementById('content').innerHTML =
+        Components.error('初始化失败：' + e.message + '（请查看浏览器控制台）').outerHTML;
+    }
   },
 
   _setContent(html) {

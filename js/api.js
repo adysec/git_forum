@@ -8,7 +8,10 @@ const API = {
       headers['Content-Type'] = 'application/json';
     }
 
-    const res = await fetch(url, { ...opts, headers });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const res = await fetch(url, { ...opts, headers, signal: controller.signal });
+    clearTimeout(timeout);
     if (res.status === 204) return null;
     if (res.status === 403) {
       const reset = res.headers.get('X-RateLimit-Reset');
