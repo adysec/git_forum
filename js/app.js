@@ -64,8 +64,7 @@ const App = {
   },
 
   async home() {
-    const loading = Components.loading();
-    this._setContent('', loading);
+    this._setContent(Components.loading().outerHTML);
     try {
       this._page = 1;
       const issues = await API.listIssues(CONFIG.labels.post, 1);
@@ -236,7 +235,7 @@ const App = {
           </select>
         </div>
         <div class="form-group">
-          <label>Title</label>
+          <label>标题</label>
           <input id="post-title" class="form-input" required maxlength="256" placeholder="帖子标题">
         </div>
         <div class="form-group">
@@ -314,7 +313,7 @@ const App = {
           ).join('')}
         </div>
         <div class="post-actions">
-          ${isAuthor ? `<button class="btn btn-sm btn-danger" onclick="App._deletePost(${params.pid})">Delete</button>` : ''}
+          ${isAuthor ? `<button class="btn btn-sm btn-danger" onclick="App._deletePost(${params.pid})">删除</button>` : ''}
         </div>
         <h2 style="font-size:16px;font-weight:600;margin-bottom:16px">评论（${comments.length}）</h2>
         <div id="comments">
@@ -329,7 +328,7 @@ const App = {
                 <div class="comment-body">${Components.parseMarkdown(c.body)}</div>
                 ${user && c.user.login === user.login ?
                   `<div class="comment-actions">
-                    <button class="btn btn-sm btn-danger" onclick="App._deleteComment(${c.id}, ${params.pid})">Delete</button>
+                    <button class="btn btn-sm btn-danger" onclick="App._deleteComment(${c.id}, ${params.pid})">删除</button>
                   </div>` : ''
                 }
               </div>
@@ -373,6 +372,16 @@ const App = {
     }
   },
 
+  async _deleteComment(commentId, issueNumber) {
+    if (!confirm('确定删除此评论？')) return;
+    try {
+      await API.deleteComment(commentId);
+      Router.navigate(Router.currentPath);
+    } catch (e) {
+      alert('出错了：' + e.message);
+    }
+  },
+
   async _deletePost(issueNumber) {
         if (!confirm('确定删除此帖？')) return;
     try {
@@ -380,16 +389,6 @@ const App = {
       Router.navigate('/');
     } catch (e) {
       alert('出错了：' + e.message);
-    }
-  },
-
-  async _deleteComment(commentId, issueNumber) {
-    if (!confirm('确定删除此评论？')) return;
-    try {
-      await API.deleteComment(commentId);
-      Router.navigate(Router.currentPath);
-    } catch (e) {
-      alert('Error: ' + e.message);
     }
   },
 
@@ -411,7 +410,7 @@ const App = {
         : solos;
       const html = `
         <div class="user-profile">
-          ${targetUser ? `<img src="${targetUser.avatar_url}" alt=""><h1>${targetUser.name || targetUser.login}</h1><div class="user-login">@${targetUser.login}</div>` : '<h1>Solos</h1>'}
+          ${targetUser ? `<img src="${targetUser.avatar_url}" alt=""><h1>${targetUser.name || targetUser.login}</h1><div class="user-login">@${targetUser.login}</div>` : '<h1>全部动态</h1>'}
         </div>
         ${Auth.isLoggedIn ? `
           <form id="solo-form" style="margin-bottom:20px">
@@ -477,9 +476,9 @@ const App = {
           ${user.company ? `<div class="user-bio">🏢 ${user.company}</div>` : ''}
           ${user.location ? `<div class="user-bio">📍 ${user.location}</div>` : ''}
           <div class="user-stats">
-            <div class="user-stat"><div class="num">${posts.length}</div><div class="label">posts</div></div>
-            <div class="user-stat"><div class="num">${userSolos.total_count || 0}</div><div class="label">solos</div></div>
-            <div class="user-stat"><div class="num">${user.public_repos || 0}</div><div class="label">repos</div></div>
+            <div class="user-stat"><div class="num">${posts.length}</div><div class="label">帖子</div></div>
+            <div class="user-stat"><div class="num">${userSolos.total_count || 0}</div><div class="label">动态</div></div>
+            <div class="user-stat"><div class="num">${user.public_repos || 0}</div><div class="label">仓库</div></div>
           </div>
           ${isOwnProfile ? '<a href="#/post/new" class="btn btn-sm btn-primary">发帖</a>' : ''}
           <a href="https://github.com/${user.login}" target="_blank" class="btn btn-sm" style="margin-left:8px">GitHub 主页</a>

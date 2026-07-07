@@ -116,7 +116,7 @@ const API = {
     }).catch(() => null);
   },
 
-  removeReaction(reactionId) {
+  removeReaction(issueNumber, reactionId) {
     return this._fetch(`/repos/${CONFIG.owner}/${CONFIG.repo}/issues/${issueNumber}/reactions/${reactionId}`, {
       method: 'DELETE',
     }).catch(() => null);

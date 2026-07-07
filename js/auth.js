@@ -19,6 +19,13 @@ const Auth = {
   },
 
   async login() {
+    if (!CONFIG.oauth_client_id || CONFIG.oauth_client_id === 'YOUR_GITHUB_OAUTH_CLIENT_ID') {
+      alert('请先在 config.js 中配置 oauth_client_id\n\n' +
+        '1. 前往 https://github.com/settings/developers\n' +
+        '2. 创建 OAuth App，启用 Device Flow\n' +
+        '3. 将 Client ID 填入 config.js 的 oauth_client_id');
+      return;
+    }
     try {
       const { device_code, user_code, verification_uri, interval } =
         await this._startDeviceFlow();
