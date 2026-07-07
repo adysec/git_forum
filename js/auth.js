@@ -19,28 +19,22 @@ const Auth = {
   },
 
   async login() {
-    if (!CONFIG.oauth_client_id || CONFIG.oauth_client_id === 'YOUR_GITHUB_OAUTH_CLIENT_ID') {
-      alert('请先在 config.js 中配置 oauth_client_id\n\n' +
-        '1. 前往 https://github.com/settings/developers\n' +
-        '2. 创建 OAuth App，Homepage/Callback URL 均填你的 Pages 地址\n' +
-        '3. 在 OAuth App 设置中启用 Device Flow\n' +
-        '4. 将 Client ID 填入 config.js 的 oauth_client_id');
-      return;
-    }
+    this._showTokenDialog();
+  },
+
+  async loginWithToken(token) {
+    token = token.trim();
+    if (!token) return;
     try {
-      const { device_code, user_code, verification_uri, interval } =
-        await this._startDeviceFlow();
-      this._showCode(user_code, verification_uri);
-      const token = await this._pollToken(device_code, interval);
-      localStorage.setItem('forum_token', token);
       API.setToken(token);
-      this._user = await API.getMe();
-      localStorage.setItem('forum_user', JSON.stringify(this._user));
-      App._renderHeader();
-      location.hash = location.hash;
-      return this._user;
+      const user = await API.getMe();
+      localStorage.setItem('forum_token', token);
+      localStorage.setItem('forum_user', JSON.stringify(user));
+      this._user = user;
+      return user;
     } catch (e) {
-      alert('登录失败：' + e.message);
+      API.setToken(null);
+      throw e;
     }
   },
 
@@ -52,54 +46,63 @@ const Auth = {
     Router.navigate('/');
   },
 
-  async _startDeviceFlow() {
-    const res = await fetch('https://github.com/login/device/code', {
-      method: 'POST',
-      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        client_id: CONFIG.oauth_client_id,
-        scope: 'repo,user',
-      }),
-    });
-    if (!res.ok) throw new Error('设备流认证启动失败');
-    return res.json();
-  },
+  _showTokenDialog() {
+    const old = document.getElementById('token-dialog');
+    if (old) old.remove();
 
-  _showCode(userCode, uri) {
-    const modal = document.getElementById('auth-modal');
-    if (!modal) return;
-    const codeEl = document.getElementById('auth-code');
-    const uriEl = document.getElementById('auth-uri');
-    if (codeEl) codeEl.textContent = userCode;
-    if (uriEl) uriEl.href = uri;
-    modal.style.display = 'flex';
-  },
+    const overlay = document.createElement('div');
+    overlay.id = 'token-dialog';
+    overlay.className = 'modal-overlay';
+    overlay.style.display = 'flex';
+    overlay.innerHTML = `
+      <div class="modal">
+        <h2>GitHub 登录</h2>
+        <p style="font-size:13px;text-align:left">
+          GitHub OAuth 无法在纯静态页面中直接使用，
+          需要改用 Personal Access Token：
+        </p>
+        <ol style="text-align:left;font-size:13px;color:var(--text-secondary);margin:12px 0 12px 20px">
+          <li>点击下方按钮前往 Token 生成页面</li>
+          <li>勾选 <b>repo</b> 和 <b>user</b> 权限，生成</li>
+          <li>复制 Token 粘贴到输入框，点击登录</li>
+        </ol>
+        <a id="token-generate-btn" href="https://github.com/settings/tokens/new?description=git_forum&scopes=repo,user"
+           target="_blank" class="btn btn-sm" style="margin-bottom:12px;display:inline-flex">
+          生成 Token →
+        </a>
+        <input id="token-input" type="password" class="form-input"
+          placeholder="粘贴 Token..." style="margin-bottom:12px;text-align:center" autofocus>
+        <div style="display:flex;gap:8px;justify-content:center">
+          <button id="token-submit" class="btn btn-primary">登录</button>
+          <button id="token-cancel" class="btn">取消</button>
+        </div>
+        <p id="token-error" style="color:var(--danger);font-size:13px;margin-top:8px;display:none"></p>
+      </div>
+    `;
+    document.body.appendChild(overlay);
 
-  async _pollToken(deviceCode, interval) {
-    return new Promise((resolve, reject) => {
-      const poll = async () => {
-        const res = await fetch('https://github.com/login/oauth/access_token', {
-          method: 'POST',
-          headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            client_id: CONFIG.oauth_client_id,
-            device_code: deviceCode,
-            grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
-          }),
-        });
-        const data = await res.json();
-        if (data.access_token) {
-          document.getElementById('auth-modal').style.display = 'none';
-          resolve(data.access_token);
-        } else if (data.error === 'authorization_pending') {
-          setTimeout(poll, (interval || 5) * 1000);
-        } else if (data.error === 'slow_down') {
-          setTimeout(poll, (interval || 5) * 1000 + 5000);
-        } else {
-          reject(new Error(data.error_description || data.error || '认证失败'));
-        }
-      };
-      poll();
-    });
+    document.getElementById('token-submit').onclick = async () => {
+      const input = document.getElementById('token-input');
+      const error = document.getElementById('token-error');
+      const btn = document.getElementById('token-submit');
+      btn.disabled = true;
+      btn.textContent = '验证中...';
+      error.style.display = 'none';
+      try {
+        await this.loginWithToken(input.value);
+        overlay.remove();
+        App._renderHeader();
+        location.hash = location.hash;
+      } catch (e) {
+        error.textContent = '令牌无效：' + e.message;
+        error.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = '登录';
+      }
+    };
+    document.getElementById('token-cancel').onclick = () => overlay.remove();
+    document.getElementById('token-input').onkeydown = (e) => {
+      if (e.key === 'Enter') document.getElementById('token-submit').click();
+    };
   },
 };
