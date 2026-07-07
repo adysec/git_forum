@@ -1,22 +1,15 @@
 const API = {
-  _token: null,
   _cache: new Map(),
-
-  setToken(token) { this._token = token },
-
-  getToken() { return this._token },
 
   async _fetch(path, opts = {}) {
     const url = `https://api.github.com${path}`;
     const headers = { 'Accept': 'application/vnd.github.v3+json' };
-    if (this._token) headers['Authorization'] = `token ${this._token}`;
     if (opts.body && !(opts.body instanceof FormData)) {
       headers['Content-Type'] = 'application/json';
     }
 
     const res = await fetch(url, { ...opts, headers });
     if (res.status === 204) return null;
-    if (res.status === 401) { Auth.logout(); throw new Error('未授权') }
     if (res.status === 403) {
       const reset = res.headers.get('X-RateLimit-Reset');
       const wait = reset ? Math.max(0, parseInt(reset) - Math.floor(Date.now() / 1000)) : 60;
@@ -39,22 +32,8 @@ const API = {
     return this._labels;
   },
 
-  async createLabel(name, color = 'ededed') {
-    const exists = await this.ensureLabels();
-    if (exists.has(name)) return;
-    await this._fetch(`/repos/${CONFIG.owner}/${CONFIG.repo}/labels`, {
-      method: 'POST',
-      body: JSON.stringify({ name, color }),
-    }).catch(() => {});
-    this._labels.add(name);
-  },
-
   async ensureInitialLabels() {
-    await Promise.all([
-      this.createLabel('type:inn', '0e8a16'),
-      this.createLabel('type:post', 'fbca04'),
-      this.createLabel('type:solo', '5319e7'),
-    ]);
+    await this.ensureLabels();
   },
 
   listIssues(label, page = 1, state = 'open') {
@@ -70,64 +49,12 @@ const API = {
     return this._fetch(`/repos/${CONFIG.owner}/${CONFIG.repo}/issues/${number}`);
   },
 
-  createIssue(title, body, labels = []) {
-    return this._fetch(`/repos/${CONFIG.owner}/${CONFIG.repo}/issues`, {
-      method: 'POST',
-      body: JSON.stringify({ title, body, labels }),
-    });
-  },
-
-  updateIssue(number, data) {
-    return this._fetch(`/repos/${CONFIG.owner}/${CONFIG.repo}/issues/${number}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    });
-  },
-
   listComments(issueNumber, page = 1) {
     return this._fetch(`/repos/${CONFIG.owner}/${CONFIG.repo}/issues/${issueNumber}/comments?page=${page}&per_page=100`);
   },
 
-  createComment(issueNumber, body) {
-    return this._fetch(`/repos/${CONFIG.owner}/${CONFIG.repo}/issues/${issueNumber}/comments`, {
-      method: 'POST',
-      body: JSON.stringify({ body }),
-    });
-  },
-
-  updateComment(commentId, body) {
-    return this._fetch(`/repos/${CONFIG.owner}/${CONFIG.repo}/issues/comments/${commentId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ body }),
-    });
-  },
-
-  deleteComment(commentId) {
-    return this._fetch(`/repos/${CONFIG.owner}/${CONFIG.repo}/issues/comments/${commentId}`, {
-      method: 'DELETE',
-    });
-  },
-
-  addReaction(issueNumber, content) {
-    return this._fetch(`/repos/${CONFIG.owner}/${CONFIG.repo}/issues/${issueNumber}/reactions`, {
-      method: 'POST',
-      body: JSON.stringify({ content }),
-      headers: { 'Accept': 'application/vnd.github.squirrel-girl-preview+json' },
-    }).catch(() => null);
-  },
-
-  removeReaction(issueNumber, reactionId) {
-    return this._fetch(`/repos/${CONFIG.owner}/${CONFIG.repo}/issues/${issueNumber}/reactions/${reactionId}`, {
-      method: 'DELETE',
-    }).catch(() => null);
-  },
-
   getUser(username) {
     return this._fetch(`/users/${username}`);
-  },
-
-  getMe() {
-    return this._fetch('/user');
   },
 
   searchIssues(q, page = 1) {

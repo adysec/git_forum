@@ -9,5 +9,4 @@ const CONFIG = {
     post: 'type:post',
     solo: 'type:solo',
   },
-  adminUsers: [],
 };
