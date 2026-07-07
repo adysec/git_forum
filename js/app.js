@@ -60,7 +60,7 @@ const App = {
 
   async init() {
     try {
-      ImageStore.cleanup();
+      ImageStore.cleanup().catch(() => {});
 
       Router.on('/', (p) => this.home(p));
       Router.on('/inn/list', (p) => this.innList(p));
