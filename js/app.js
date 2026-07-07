@@ -5,9 +5,13 @@ const App = {
     return `https://github.com/${CONFIG.owner}/${CONFIG.repo}${path}`;
   },
 
-  _newIssueUrl(labels = []) {
-    const allLabels = [CONFIG.labels.post, ...labels];
-    return this._githubUrl('/issues/new?labels=') + encodeURIComponent(allLabels.join(','));
+  _newIssueUrl(labels, title, body) {
+    const base = `https://github.com/${CONFIG.owner}/${CONFIG.repo}/issues/new`;
+    const params = new URLSearchParams();
+    if (labels && labels.length) params.set('labels', labels.join(','));
+    if (title) params.set('title', title);
+    if (body) params.set('body', body);
+    return base + '?' + params.toString();
   },
 
   async init() {
@@ -24,7 +28,7 @@ const App = {
       Router.init();
     } catch (e) {
       document.getElementById('content').innerHTML =
-        Components.error('初始化失败：' + e.message + '（请查看浏览器控制台）').outerHTML;
+        Components.error('初始化失败：' + e.message).outerHTML;
     }
   },
 
@@ -32,11 +36,54 @@ const App = {
     document.getElementById('content').innerHTML = html;
   },
 
+  _issueToPost(issue) {
+    const innLabel = issue.labels.find(l => l.name.startsWith('inn:'));
+    return {
+      number: issue.number,
+      title: issue.title,
+      body: issue.body || '',
+      user: issue.user,
+      created_at: issue.created_at,
+      comments: issue.comments,
+      reactions: issue.reactions,
+      inn: innLabel ? innLabel.name.slice(4) : 'general',
+      labels: issue.labels.map(l => l.name),
+    };
+  },
+
+  _renderPostCard(post) {
+    const ts = Components.timeAgo(post.created_at);
+    return `
+      <div class="card">
+        <div class="card-title">
+          <a href="#/post/${post.inn || 'general'}/${post.number}">${post.title}</a>
+        </div>
+        <div class="card-meta">
+          <span class="user-badge">
+            <img src="${post.user.avatar_url}" width="16" height="16" style="border-radius:50%" alt="">
+            <a href="#/user/${post.user.login}">${post.user.login}</a>
+          </span>
+          <span>${ts}</span>
+          ${post.comments > 0 ? `<span>💬 ${post.comments}</span>` : ''}
+          ${post.inn ? `<span class="tag">${post.inn}</span>` : ''}
+        </div>
+      </div>
+    `;
+  },
+
+  async _fetchWithFallback(fetchLabelFn) {
+    try {
+      return await fetchLabelFn();
+    } catch {
+      return [];
+    }
+  },
+
   async home() {
     this._setContent(Components.loading().outerHTML);
     try {
       this._page = 1;
-      const issues = await API.listIssues(CONFIG.labels.post, 1);
+      let issues = await API.listIssues(CONFIG.labels.post, 1);
       const hasMore = issues.length >= CONFIG.per_page;
       const posts = issues.map(i => this._issueToPost(i));
       const html = `
@@ -44,7 +91,7 @@ const App = {
           <h1 style="font-size:20px;font-weight:700">最新帖子</h1>
           <div>
             <a href="#/search" class="btn btn-sm">搜索</a>
-            <a href="${this._newIssueUrl()}" target="_blank" class="btn btn-sm btn-primary">发帖</a>
+            <a href="#/post/new" class="btn btn-sm btn-primary">发帖</a>
           </div>
         </div>
         <div id="post-list">${posts.map(p => this._renderPostCard(p)).join('')}</div>
@@ -86,41 +133,6 @@ const App = {
     }
   },
 
-  _issueToPost(issue) {
-    const innLabel = issue.labels.find(l => l.name.startsWith('inn:'));
-    return {
-      number: issue.number,
-      title: issue.title,
-      body: issue.body || '',
-      user: issue.user,
-      created_at: issue.created_at,
-      comments: issue.comments,
-      reactions: issue.reactions,
-      inn: innLabel ? innLabel.name.slice(4) : 'general',
-      labels: issue.labels.map(l => l.name),
-    };
-  },
-
-  _renderPostCard(post) {
-    const ts = Components.timeAgo(post.created_at);
-    return `
-      <div class="card">
-        <div class="card-title">
-          <a href="#/post/${post.inn || 'general'}/${post.number}">${post.title}</a>
-        </div>
-        <div class="card-meta">
-          <span class="user-badge">
-            <img src="${post.user.avatar_url}" width="16" height="16" style="border-radius:50%" alt="">
-            <a href="#/user/${post.user.login}">${post.user.login}</a>
-          </span>
-          <span>${ts}</span>
-          ${post.comments > 0 ? `<span>💬 ${post.comments}</span>` : ''}
-          ${post.inn ? `<span class="tag">${post.inn}</span>` : ''}
-        </div>
-      </div>
-    `;
-  },
-
   async innList() {
     this._setContent(Components.loading().outerHTML);
     try {
@@ -135,7 +147,8 @@ const App = {
       const html = `
         <h1 style="font-size:20px;font-weight:700;margin-bottom:20px">社区</h1>
         <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">
-          在 GitHub 上创建社区 → <a href="${this._newIssueUrl([CONFIG.labels.inn])}" target="_blank" class="btn btn-sm">创建</a>
+          在 GitHub 上创建社区 →
+          <a href="${this._newIssueUrl([CONFIG.labels.inn])}" target="_blank" class="btn btn-sm">创建</a>
         </p>
         ${inns.length === 0 ? Components.empty('暂无社区').outerHTML :
           inns.map(inn => `
@@ -164,7 +177,8 @@ const App = {
     try {
       const innIssue = await API.getIssue(params.iid);
       const innName = innIssue.title;
-      const label = `inn:${innName.toLowerCase().replace(/\s+/g, '-')}`;
+      const innSlug = innName.toLowerCase().replace(/\s+/g, '-');
+      const label = `inn:${innSlug}`;
       const searchQuery = `label:${CONFIG.labels.post}+label:${label}`;
       const searchResult = await API.searchIssues(searchQuery);
       const posts = (searchResult.items || []).map(i => this._issueToPost(i));
@@ -174,7 +188,7 @@ const App = {
             <h1 style="font-size:20px;font-weight:700">${innName}</h1>
             ${innIssue.body ? `<p style="color:var(--text-secondary);font-size:14px">${Components.parseMarkdown(innIssue.body)}</p>` : ''}
           </div>
-          <a href="${this._newIssueUrl([label])}" target="_blank" class="btn btn-sm btn-primary">发帖</a>
+          <a href="#/post/new?inn=${innSlug}" class="btn btn-sm btn-primary">发帖</a>
         </div>
         ${posts.length === 0 ? Components.empty('此社区暂无帖子').outerHTML :
           posts.map(p => this._renderPostCard(p)).join('')
@@ -186,9 +200,68 @@ const App = {
     }
   },
 
-  postNew() {
-    window.open(this._newIssueUrl(), '_blank');
-    Router.navigate('/');
+  async postNew(params) {
+    this._setContent(Components.loading().outerHTML);
+    try {
+      const preInn = (params && params.inn) || '';
+      const inns = await API.listIssues(CONFIG.labels.inn).catch(() => []);
+      const innOptions = inns.map(i => {
+        const slug = i.title.toLowerCase().replace(/\s+/g, '-');
+        const selected = slug === preInn ? ' selected' : '';
+        return `<option value="${slug}"${selected}>${i.title}</option>`;
+      }).join('');
+
+      const html = `
+        <h1 style="font-size:20px;font-weight:700;margin-bottom:20px">发新帖</h1>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">
+          填写完成后将跳转到 GitHub 提交。
+        </p>
+        <form id="post-form">
+          <div class="form-group">
+            <label>所属社区</label>
+            <select id="post-inn" class="form-input">
+              <option value="">综合</option>
+              ${innOptions}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>标题</label>
+            <input id="post-title" class="form-input" required maxlength="256" placeholder="帖子标题">
+          </div>
+          <div class="form-group">
+            <label>标签（逗号分隔）</label>
+            <input id="post-tags" class="form-input" placeholder="例如：rust, 求助, 讨论">
+          </div>
+          <div class="form-group">
+            <label>内容（支持 Markdown）</label>
+            <textarea id="post-content" class="form-input" required maxlength="65000"
+              placeholder="写下你的内容..." style="min-height:200px"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">提交到 GitHub →</button>
+        </form>
+      `;
+      this._setContent(html);
+
+      document.getElementById('post-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const inn = document.getElementById('post-inn').value;
+        const title = document.getElementById('post-title').value;
+        const tags = document.getElementById('post-tags').value;
+        const content = document.getElementById('post-content').value;
+
+        const labels = [CONFIG.labels.post];
+        if (inn) labels.push(`inn:${inn}`);
+        tags.split(',').map(t => t.trim()).filter(t => t).forEach(t => {
+          labels.push(`tag:${t.toLowerCase().replace(/\s+/g, '-')}`);
+        });
+
+        const url = this._newIssueUrl(labels, title, content);
+        window.open(url, '_blank');
+        Router.navigate('/');
+      });
+    } catch (e) {
+      this._setContent(Components.error(e.message).outerHTML);
+    }
   },
 
   async postView(params) {
@@ -260,7 +333,8 @@ const App = {
             : '<h1>全部动态</h1>'}
         </div>
         <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px">
-          发动态 → <a href="${this._githubUrl('/issues/new?labels=') + encodeURIComponent(CONFIG.labels.solo)}" target="_blank" class="btn btn-sm">发动态</a>
+          发动态 →
+          <a href="${this._newIssueUrl([CONFIG.labels.solo])}" target="_blank" class="btn btn-sm">发动态</a>
         </p>
         <h2 style="font-size:16px;font-weight:600;margin-bottom:16px">动态</h2>
         ${filteredSolos.length === 0 ? Components.empty('暂无动态').outerHTML :

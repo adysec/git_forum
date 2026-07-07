@@ -20,12 +20,20 @@ const Router = {
   },
 
   _handleRoute() {
-    const path = this.currentPath;
+    const full = this.currentPath;
+    const qIdx = full.indexOf('?');
+    const path = qIdx >= 0 ? full.slice(0, qIdx) : full;
+    const qs = qIdx >= 0 ? full.slice(qIdx + 1) : '';
+
     for (const [pattern, handler] of Object.entries(this._routes)) {
       const match = this._matchPath(pattern, path);
       if (match) {
         this._currentRoute = pattern;
-        handler(match.params);
+        const params = match.params;
+        if (qs) {
+          new URLSearchParams(qs).forEach((v, k) => { params[k] = v });
+        }
+        handler(params);
         return;
       }
     }
