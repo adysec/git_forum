@@ -1,0 +1,32 @@
+name: Cleanup old issues
+on:
+  schedule:
+    - cron: '0 3 * * 0'
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const repo = context.repo;
+            const { data: issues } = await github.rest.issues.listForRepo({
+              ...repo,
+              state: 'closed',
+              labels: 'type:solo',
+              per_page: 100,
+            });
+            for (const issue of issues) {
+              if (issue.comments === 0 && issue.reactions?.total_count === 0) {
+                const daysOld = (Date.now() - new Date(issue.created_at).getTime()) / 86400000;
+                if (daysOld > 30) {
+                  await github.rest.issues.deleteLabel({
+                    ...repo,
+                    issue_number: issue.number,
+                  }).catch(() => {});
+                }
+              }
+            }
+            console.log(`Checked ${issues.length} issues`);

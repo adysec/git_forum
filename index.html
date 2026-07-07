@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>自由论坛</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <meta name="description" content="A community forum powered by GitHub Issues">
+  <meta property="og:title" content="Freedom Forum">
+  <meta property="og:description" content="A community forum powered by GitHub Issues">
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <a href="#/" class="logo">Forum</a>
+      <nav>
+        <a href="#/">首页</a>
+        <a href="#/inn/list">社区</a>
+        <a href="#/solo/user/0">动态</a>
+        <a href="#/search">搜索</a>
+      </nav>
+      <div class="auth-area"></div>
+    </div>
+  </header>
+  <main id="content">
+    <div class="loading">加载中...</div>
+  </main>
+  <script src="config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/components.js"></script>
+  <script src="js/router.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => App.init());
+  </script>
+</body>
+</html>

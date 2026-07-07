@@ -1,0 +1,5 @@
+title: Freedom Forum
+description: A community forum powered by GitHub Issues
+url: "https://YOUR_USERNAME.github.io"
+baseurl: "/forum"
+markdown: GFM
