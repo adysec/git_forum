@@ -25,22 +25,31 @@
   <main id="content">
     <div class="loading">加载中...</div>
   </main>
-  <script data-cfasync="false" src="config.js?v=2"></script>
-  <script data-cfasync="false" src="js/api.js?v=2"></script>
-  <script data-cfasync="false" src="js/components.js?v=2"></script>
-  <script data-cfasync="false" src="js/router.js?v=2"></script>
-  <script data-cfasync="false" src="js/app.js?v=2"></script>
+  <!-- data-cfasync=false disables Rocket Loader for each script -->
+  <script data-cfasync="false" src="config.js?v=3"></script>
+  <script data-cfasync="false" src="js/api.js?v=3"></script>
+  <script data-cfasync="false" src="js/components.js?v=3"></script>
+  <script data-cfasync="false" src="js/router.js?v=3"></script>
+  <script data-cfasync="false" src="js/app.js?v=3"></script>
   <script data-cfasync="false">
-    function tryInit(retries) {
-      if (typeof App !== 'undefined') return App.init();
-      if (retries > 5) {
-        document.getElementById('content').innerHTML =
-          '<div class="error" style="margin:40px;text-align:center">加载失败：请关闭 Cloudflare Rocket Loader 或清除缓存后重试</div>';
-        return;
+    // Inline init: runs immediately after all scripts above (non-async/non-defer)
+    (function() {
+      var maxWait = 20; // ~10 seconds
+      function poll(n) {
+        if (typeof App !== 'undefined') return App.init();
+        if (n >= maxWait) {
+          document.getElementById('content').innerHTML =
+            '<div class="error" style="margin:40px;text-align:center">加载失败：请关闭 Cloudflare Rocket Loader 或清除缓存后重试</div>';
+          return;
+        }
+        setTimeout(poll, 500, n + 1);
       }
-      setTimeout(tryInit, 500, (retries || 0) + 1);
-    }
-    document.addEventListener('DOMContentLoaded', () => tryInit(0));
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() { poll(0); });
+      } else {
+        poll(0);
+      }
+    })();
   </script>
 </body>
 </html>
