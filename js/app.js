@@ -330,7 +330,7 @@ const App = {
               <button type="button" class="md-btn" data-tag="link" title="链接">🔗</button>
               <button type="button" class="md-btn" data-tag="image" title="图片">🖼</button>
               <button type="button" class="md-btn" data-tag="code" title="代码">&lt;/&gt;</button>
-              <button type="button" class="md-btn" data-tag="codeblock" title="代码块">```</button>
+              <button type="button" class="md-btn" data-tag="codeblock" title="代码块">\`\`\`</button>
               <button type="button" class="md-btn" data-tag="list" title="列表">•</button>
               <button type="button" class="md-btn" data-tag="quote" title="引用">&gt;</button>
               <span class="md-hint">📋 粘贴图片自动存储 · 全功能编辑在 GitHub</span>
